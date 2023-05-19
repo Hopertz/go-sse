@@ -20,7 +20,7 @@ jobs:
       run: go test -v ./...
       
     - name: Build
-      run: go build -v -o truth ./cmd/api
+      run: go build -v -o truth
 
     - uses: actions/upload-artifact@v3
       with:
