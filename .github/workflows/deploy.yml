@@ -1,0 +1,62 @@
+name: Go Test Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+ 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.20.4
+      
+    - name: Test
+      run: go test -v ./...
+      
+    - name: Build
+      run: go build -v -o truth ./cmd/api
+
+    - uses: actions/upload-artifact@v3
+      with:
+          name: truth-artifact
+          path: ./truth
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: truth-artifact
+      - name: Deploy to server
+        uses: appleboy/scp-action@master
+        with:
+           host: ${{ secrets.HOST }}
+           username: ${{ secrets.USERNAME }}
+           password: ${{ secrets.PASSWORD }}
+           port: ${{ secrets.PORT }}
+           source: ./truth
+           target: "/home/${{ secrets.USERNAME }}/truth"
+
+      - name: Start Truth Web Service and Reload Nginx
+        uses: appleboy/ssh-action@master
+        with:
+           host: ${{ secrets.HOST }}
+           username: ${{ secrets.USERNAME }}
+           password: ${{ secrets.PASSWORD }}
+           port: ${{ secrets.PORT }}
+           script: |
+               cd /home/${{ secrets.USERNAME }}/truth
+               chmod +x truth
+               echo ${{ secrets.PASSWORD }} | sudo -S systemctl stop truth.service 
+               echo ${{ secrets.PASSWORD }} | sudo -S systemctl start truth.service 
+               echo ${{ secrets.PASSWORD }} | sudo -S systemctl reload nginx
+
+ 
