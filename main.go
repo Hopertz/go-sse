@@ -3,22 +3,17 @@
 // Run this code like:
 //  > go run server.go
 //
-// Then open up your browser to http://localhost:8000
+// Then open up your browser to http://localhost:6767
 // Your browser must support HTML5 SSE, of course.
 
 package main
 
 import (
-	"embed"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"time"
 )
-
-//go:embed "templates"
-var templateFS embed.FS
 
 // A single Broker will be created in this program. It is responsible
 // for keeping a list of which clients (browsers) are currently attached
@@ -112,7 +107,7 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	b.newClients <- messageChan
 
 	// Listen to the closing of the http connection via the CloseNotifier
-	// notify := w.(http.CloseNotifier).CloseNotify() its deprecated 
+	// notify := w.(http.CloseNotifier).CloseNotify() its deprecated
 
 	notify := r.Context().Done()
 
@@ -143,7 +138,7 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Write to the ResponseWriter, `w`.
-		fmt.Fprintf(w, "data: Message: %s\n\n", msg)
+		fmt.Fprintf(w, "data:%s\n\n", msg)
 
 		// Flush the response.  This is only possible if
 		// the repsonse supports streaming.
@@ -152,33 +147,6 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Done.
 	log.Println("Finished HTTP request at ", r.URL.Path)
-}
-
-// Handler for the main page, which we wire up to the
-// route at "/" below in `main`.
-func handler(w http.ResponseWriter, r *http.Request) {
-
-	// Did you know Golang's ServeMux matches only the
-	// prefix of the request URL?  It's true.  Here we
-	// insist the path is just "/".
-	if r.URL.Path != "/" {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	// Read in the template with our SSE JavaScript code.
-
-	t, err := template.ParseFS(templateFS, "templates/index.html")
-	if err != nil {
-		log.Fatal("WTF dude, error parsing your template.")
-
-	}
-
-	// Render the template, writing to `w`.
-	t.Execute(w, "friend")
-
-	// Done.
-	log.Println("Finished HTTP request at", r.URL.Path)
 }
 
 // Main routine
@@ -204,24 +172,26 @@ func main() {
 	// Generate a constant stream of events that get pushed
 	// into the Broker's messages channel and are then broadcast
 	// out to any clients that are attached.
+
+	messages := []string{"Hello", "How are you?", "I hope you're having a great day!"}
 	go func() {
 		for i := 0; ; i++ {
 
 			// Create a little message to send to clients,
 			// including the current time.
-			b.messages <- fmt.Sprintf("%d - the time is %v", i, time.Now())
+			b.messages <- messages[i%len(messages)]
 
 			// Print a nice log message and sleep for 5s.
 			log.Printf("Sent message %d ", i)
-			time.Sleep(5e9)
+			time.Sleep(3e9)
 
 		}
 	}()
 
 	// When we get a request at "/", call `handler`
 	// in a new goroutine.
-	http.Handle("/", http.HandlerFunc(handler))
+	http.Handle("/", http.FileServer(http.Dir("static")))
 
 	// Start the server and listen forever on port 8000.
-	http.ListenAndServe(":8000", nil)
+	http.ListenAndServe(":6767", nil)
 }
