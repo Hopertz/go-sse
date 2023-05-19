@@ -1,1 +1,1 @@
-# sse-practice
+# go-sse
