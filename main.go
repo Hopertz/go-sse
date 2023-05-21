@@ -13,6 +13,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 // A single Broker will be created in this program. It is responsible
@@ -184,12 +186,11 @@ func main() {
 	// Make b the HTTP handler for "/events/".  It can do
 	// this because it has a ServeHTTP method.  That method
 	// is called in a separate goroutine for each
-	// request to "/events/".
+	// request to "/events".
 
-	// Enable CORS middleware
-	handler := enableCORS(http.DefaultServeMux)
+	router := httprouter.New()
 
-	http.Handle("/events/", b)
+	router.Handler(http.MethodGet, "/events", b)
 
 	// Generate a constant stream of events that get pushed
 	// into the Broker's messages channel and are then broadcast
@@ -211,5 +212,5 @@ func main() {
 	}()
 
 	// Start the server and listen forever on port 8000.
-	http.ListenAndServe(":6767", handler)
+	http.ListenAndServe(":6767", enableCORS(router))
 }
