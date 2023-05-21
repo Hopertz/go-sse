@@ -149,6 +149,24 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Println("Finished HTTP request at ", r.URL.Path)
 }
 
+func enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+
+		if origin != "" {
+			if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+				w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Main routine
 func main() {
 
@@ -167,6 +185,10 @@ func main() {
 	// this because it has a ServeHTTP method.  That method
 	// is called in a separate goroutine for each
 	// request to "/events/".
+
+	// Enable CORS middleware
+	handler := enableCORS(http.DefaultServeMux)
+
 	http.Handle("/events/", b)
 
 	// Generate a constant stream of events that get pushed
@@ -188,10 +210,6 @@ func main() {
 		}
 	}()
 
-	// When we get a request at "/", call `handler`
-	// in a new goroutine.
-	http.Handle("/", http.FileServer(http.Dir("static")))
-
 	// Start the server and listen forever on port 8000.
-	http.ListenAndServe(":6767", nil)
+	http.ListenAndServe(":6767", handler)
 }
