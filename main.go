@@ -1,10 +1,3 @@
-// Golang HTML5 Server Side Events Example
-//
-// Run this code like:
-//  > go run server.go
-//
-// Then open up your browser to http://localhost:6767
-// Your browser must support HTML5 SSE, of course.
 
 package main
 
